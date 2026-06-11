@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buscador RAG Local con Graph y WebLLM</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h1 { color: #333; margin-top: 0; }
+        input[type="text"] { width: 70%; padding: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; }
+        button { padding: 10px 20px; font-size: 16px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px; }
+        button:disabled { background: #cccccc; cursor: not-allowed; }
+        .result { margin-top: 20px; padding: 15px; border-left: 4px solid #0066cc; background: #f9f9f9; }
+        .filename { font-weight: bold; color: #555; font-size: 0.9em; margin-bottom: 5px; }
+        .entities { font-size: 0.8em; color: #0066cc; margin-top: 5px; }
+        #status { margin-top: 15px; color: #666; font-style: italic; }
+        #graph { width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 5px; margin-top: 20px; display: none; background: #fafafa;}
+        #llm-response { margin-top: 20px; padding: 20px; border-radius: 5px; background: #eef7ff; border: 1px solid #cce5ff; display: none; line-height: 1.5; font-size: 16px; }
+        .node circle { stroke: #fff; stroke-width: 1.5px; cursor: pointer; }
+        .node text { font-size: 12px; pointer-events: none; }
+        .link { stroke: #999; stroke-opacity: 0.6; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Buscador RAG "Lo dijo aquí"</h1>
+        <div>
+            <input type="text" id="searchInput" placeholder="Ej: Rusia, Europa y la economía..." disabled>
+            <button id="searchBtn" disabled>Buscar</button>
+        </div>
+        <div id="status">Cargando módulos en el navegador... (puede tardar unos segundos)</div>
+        <div id="llm-response"></div>
+        <svg id="graph"></svg>
+        <div id="results"></div>
+    </div>
+    
+    <script type="module" src="app.js"></script>
+</body>
+</html>
