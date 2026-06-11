@@ -1,5 +1,11 @@
 import os
 import json
+import torch
+try:
+    import intel_extension_for_pytorch as ipex
+except ImportError:
+    pass
+
 from sentence_transformers import SentenceTransformer
 from gliner import GLiNER
 
@@ -19,12 +25,21 @@ def chunk_text(text, chunk_size, overlap):
     return chunks
 
 def main():
+    if torch.cuda.is_available():
+        device = "cuda"
+    elif hasattr(torch, "xpu") and torch.xpu.is_available():
+        device = "xpu"
+    else:
+        device = "cpu"
+        
+    print(f"--- Arrancando indexador en el dispositivo: {device.upper()} ---")
+
     print("Cargando modelo de embeddings (paraphrase-multilingual-MiniLM-L12-v2)...")
     # Es vital usar el MISMO modelo aquí y en Javascript.
-    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')
+    model = SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2', device=device)
     
     print("Cargando modelo GLiNER para extracción de entidades...")
-    gliner_model = GLiNER.from_pretrained("urchade/gliner_multi-v2.1")
+    gliner_model = GLiNER.from_pretrained("urchade/gliner_multi-v2.1").to(device)
     labels = [
         "Persona Histórica o Política", 
         "País o Región", 
