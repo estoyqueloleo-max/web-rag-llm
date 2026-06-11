@@ -13,8 +13,35 @@
         button { padding: 10px 20px; font-size: 16px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px; }
         button:disabled { background: #cccccc; cursor: not-allowed; }
         .result { margin-top: 20px; padding: 15px; border-left: 4px solid #0066cc; background: #f9f9f9; }
-        .filename { font-weight: bold; color: #555; font-size: 0.9em; margin-bottom: 5px; }
-        .entities { font-size: 0.8em; color: #0066cc; margin-top: 5px; }
+        .filename { font-weight: bold; color: #555; font-size: 0.9em; margin-bottom: 8px; }
+        .filename a { color: #0055aa; text-decoration: none; }
+        .filename a:hover { text-decoration: underline; }
+        .chunk-text {
+            font-size: 0.95em;
+            line-height: 1.7;
+            color: #222;
+            margin-bottom: 10px;
+            white-space: pre-wrap;
+        }
+        mark.entity-highlight {
+            background: #fff176;
+            color: #000;
+            border-radius: 3px;
+            padding: 0 2px;
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+        }
+        .entities { font-size: 0.82em; color: #555; margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+        .entity-tag {
+            display: inline-block;
+            background: #e8f0fe;
+            color: #1a56db;
+            border: 1px solid #c5d8fc;
+            border-radius: 12px;
+            padding: 1px 9px;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
         #status { margin-top: 15px; color: #666; font-style: italic; }
         #graph { width: 100%; height: 300px; border: 1px solid #ddd; border-radius: 5px; margin-top: 20px; display: none; background: #fafafa;}
         #llm-response { margin-top: 20px; padding: 20px; border-radius: 5px; background: #eef7ff; border: 1px solid #cce5ff; display: none; line-height: 1.5; font-size: 16px; }

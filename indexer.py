@@ -9,7 +9,7 @@ except ImportError:
 from sentence_transformers import SentenceTransformer
 from gliner import GLiNER
 
-TRANSCRIPTS_DIR = "../transcripts"
+TRANSCRIPTS_DIR = "transcripts"
 OUTPUT_DB = "database.json"
 LIMIT = None  # Procesar todos los archivos
 CHUNK_SIZE = 500 # Caracteres por chunk
