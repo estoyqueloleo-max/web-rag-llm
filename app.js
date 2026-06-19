@@ -55,15 +55,28 @@ async function init() {
         for (const buf of embParts) { combined.set(new Uint8Array(buf), offset); offset += buf.byteLength; }
         embeddings = new Float32Array(combined.buffer);
         
-        // 3. Cargar WebLLM (Qwen)
-        statusEl.textContent = "Cargando WebLLM (Qwen2.5-0.5B)... Esto puede tardar varios minutos y descargar ~350MB la primera vez.";
+        // 3. Cargar WebLLM (Qwen) con detección de capacidades WebGPU
+        statusEl.textContent = "Detectando capacidades de la tarjeta gráfica...";
+        
+        let modelId = "Qwen2.5-0.5B-Instruct-q4f32_1-MLC"; // Fallback seguro para Android/GPUs antiguas
+        if (navigator.gpu) {
+            const adapter = await navigator.gpu.requestAdapter();
+            if (adapter && adapter.features.has("shader-f16")) {
+                modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC"; // Versión que consume menos RAM
+                console.log("Soporte f16 detectado. Usando modelo optimizado:", modelId);
+            } else {
+                console.log("Sin soporte f16. Usando modelo de compatibilidad:", modelId);
+            }
+        }
+        
+        statusEl.textContent = `Cargando WebLLM (${modelId})... Esto puede tardar varios minutos y descargar ~350MB la primera vez.`;
         
         const initProgressCallback = (initProgress) => {
             statusEl.textContent = `Descargando LLM: ${initProgress.text}`;
         }
         
         engine = await webllm.CreateMLCEngine(
-            "Qwen2.5-0.5B-Instruct-q4f16_1-MLC", 
+            modelId, 
             { initProgressCallback }
         );
         
