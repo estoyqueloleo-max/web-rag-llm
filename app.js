@@ -111,21 +111,35 @@ async function init() {
     }
 }
 
-// Resalta las entidades dentro de un texto escapando HTML y envolviendo matches en <mark>
-function highlightEntities(text, entities) {
-    if (!entities || entities.length === 0) {
-        return escapeHtml(text);
-    }
-    // Ordenar por longitud descendente para evitar solapamientos parciales
-    const sorted = [...entities].sort((a, b) => b.length - a.length);
-    // Escapar el texto base primero
+// Resalta las entidades y palabras de búsqueda escapando HTML
+function highlightText(text, entities, queryWords) {
     let result = escapeHtml(text);
-    // Reemplazar cada entidad por su versión marcada (case-insensitive)
-    sorted.forEach(entity => {
-        const escaped = escapeHtml(entity);
-        const regex = new RegExp(`(${escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-        result = result.replace(regex, '<mark class="entity-highlight">$1</mark>');
-    });
+    
+    // Resaltar palabras de búsqueda primero
+    if (queryWords && queryWords.length > 0) {
+        queryWords.forEach(qw => {
+            const escaped = escapeHtml(qw);
+            const regex = new RegExp(`(${escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            result = result.replace(regex, '___Q_START___$1___Q_END___');
+        });
+    }
+
+    // Resaltar entidades
+    if (entities && entities.length > 0) {
+        const sorted = [...entities].sort((a, b) => b.length - a.length);
+        sorted.forEach(entity => {
+            const escaped = escapeHtml(entity);
+            const regex = new RegExp(`(${escaped.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            result = result.replace(regex, '___E_START___$1___E_END___');
+        });
+    }
+    
+    // Convertir placeholders a HTML (permite superposición de etiquetas)
+    result = result.replace(/___Q_START___/g, '<mark style="background-color: #a8f0c6; padding: 0 2px; border-radius: 3px;">')
+                   .replace(/___Q_END___/g, '</mark>')
+                   .replace(/___E_START___/g, '<mark class="entity-highlight">')
+                   .replace(/___E_END___/g, '</mark>');
+
     return result;
 }
 
@@ -289,15 +303,16 @@ async function search() {
         const output = await extractor(query, { pooling: 'mean', normalize: true });
         const queryEmbedding = Array.from(output.data);
         
-        // 2. Calcular la similitud contra todos los chunks (sobre Float32Array binario)
+        // 2. Calcular la similitud contra todos los chunks (sobre Int8Array binario)
         const queryLower = query.toLowerCase();
+        const cleanQuery = queryLower.replace(/[.,!?;()]/g, "");
+        const queryWords = cleanQuery.split(' ').filter(w => w.length > 3);
+        
         const queryVec = new Float32Array(queryEmbedding);
         const scoredChunks = metadata.map((chunk, idx) => {
             let score = cosineSimilarity(queryVec, embeddings, idx);
             
             // Búsqueda híbrida: Boost si las palabras clave están en el texto
-            const cleanQuery = queryLower.replace(/[.,!?;()]/g, "");
-            const queryWords = cleanQuery.split(' ').filter(w => w.length > 3);
             let matchCount = 0;
             for (const w of queryWords) {
                 if (chunk.text.toLowerCase().includes(w)) matchCount++;
@@ -355,7 +370,7 @@ async function search() {
             // Texto del chunk con entidades resaltadas
             const textDiv = document.createElement('div');
             textDiv.className = 'chunk-text';
-            textDiv.innerHTML = highlightEntities(res.text, res.entities);
+            textDiv.innerHTML = highlightText(res.text, res.entities, queryWords);
 
             const entDiv = document.createElement('div');
             entDiv.className = 'entities';
