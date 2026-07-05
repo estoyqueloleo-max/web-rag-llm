@@ -5,11 +5,26 @@ let extractor;
 let metadata = [];      // [{id, filename, text, entities}, ...]
 let embeddings = null;  // Float32Array, dimensión DIM por chunk
 const DIM = 384;
-const NUM_EMB_PARTS  = 3;   // partes de embeddings.bin.part0..N-1
+const NUM_EMB_PARTS  = 1;   // partes de embeddings.bin.part0..N-1
 const NUM_META_PARTS = 2;   // partes de metadata.part0.json..N-1
 let engine;
 
-// Similitud coseno entre un Float32Array (query) y un slice del buffer de embeddings
+// Cache API para evitar descargar la BD cada vez
+async function fetchWithCache(url) {
+    const cache = await caches.open('rag-db-cache-v1');
+    let response = await cache.match(url);
+    if (!response) {
+        response = await fetch(url);
+        if (response.ok) {
+            cache.put(url, response.clone());
+        } else {
+            throw new Error(`Recurso no encontrado: ${url}`);
+        }
+    }
+    return response;
+}
+
+// Similitud coseno entre un array de consulta y un slice del buffer de embeddings
 function cosineSimilarity(queryVec, allEmbeddings, idx) {
     let dot = 0, normA = 0, normB = 0;
     const offset = idx * DIM;
@@ -32,28 +47,28 @@ async function init() {
         statusEl.textContent = "Cargando modelo de embeddings (WASM)...";
         extractor = await pipeline('feature-extraction', 'Xenova/paraphrase-multilingual-MiniLM-L12-v2');
         
-        // 2a. Cargar metadatos en paralelo (metadata.part0.json, part1.json...)
-        statusEl.textContent = "Cargando metadatos (0%)...";
+        // 2a. Cargar metadatos en paralelo (con caché persistente)
+        statusEl.textContent = "Cargando metadatos (desde caché si existe)...";
         const metaPromises = Array.from({ length: NUM_META_PARTS }, (_, i) =>
-            fetch(`metadata.part${i}.json`)
-                .then(r => { if (!r.ok) throw new Error(`metadata.part${i}.json no encontrada`); return r.json(); })
+            fetchWithCache(`metadata.part${i}.json`)
+                .then(r => r.json())
         );
         const metaParts = await Promise.all(metaPromises);
         metadata = metaParts.flat();
 
-        // 2b. Cargar embeddings binarios en paralelo (embeddings.bin.part0, part1...)
-        statusEl.textContent = "Cargando embeddings binarios...";
+        // 2b. Cargar embeddings binarios Int8 en paralelo (con caché persistente)
+        statusEl.textContent = "Cargando embeddings (Int8) binarios...";
         const embPromises = Array.from({ length: NUM_EMB_PARTS }, (_, i) =>
-            fetch(`embeddings.bin.part${i}`)
-                .then(r => { if (!r.ok) throw new Error(`embeddings.bin.part${i} no encontrado`); return r.arrayBuffer(); })
+            fetchWithCache(`embeddings.bin.part${i}`)
+                .then(r => r.arrayBuffer())
         );
         const embParts = await Promise.all(embPromises);
-        // Concatenar todos los ArrayBuffers en un solo Float32Array
+        // Concatenar todos los ArrayBuffers en un solo Int8Array
         const totalBytes = embParts.reduce((s, b) => s + b.byteLength, 0);
         const combined   = new Uint8Array(totalBytes);
         let offset = 0;
         for (const buf of embParts) { combined.set(new Uint8Array(buf), offset); offset += buf.byteLength; }
-        embeddings = new Float32Array(combined.buffer);
+        embeddings = new Int8Array(combined.buffer);
         
         // 3. Cargar WebLLM (Qwen) con detección de capacidades WebGPU
         statusEl.textContent = "Detectando capacidades de la tarjeta gráfica...";
@@ -275,15 +290,35 @@ async function search() {
         const queryEmbedding = Array.from(output.data);
         
         // 2. Calcular la similitud contra todos los chunks (sobre Float32Array binario)
+        const queryLower = query.toLowerCase();
         const queryVec = new Float32Array(queryEmbedding);
-        const scoredChunks = metadata.map((chunk, idx) => ({
-            ...chunk,
-            score: cosineSimilarity(queryVec, embeddings, idx)
-        }));
+        const scoredChunks = metadata.map((chunk, idx) => {
+            let score = cosineSimilarity(queryVec, embeddings, idx);
+            
+            // Búsqueda híbrida (Boost por coincidencia léxica exacta)
+            if (chunk.text.toLowerCase().includes(queryLower)) {
+                score += 0.3;
+            }
+            if (chunk.entities && chunk.entities.some(e => e.toLowerCase().includes(queryLower))) {
+                score += 0.1;
+            }
+            
+            return {
+                ...chunk,
+                score
+            };
+        });
         
-        // 3. Ordenar por mayor puntuación y mostrar los top 5
+        // 3. Ordenar por mayor puntuación y aplicar umbral
         scoredChunks.sort((a, b) => b.score - a.score);
-        const topResults = scoredChunks.slice(0, 5);
+        // Umbral de similitud para evitar resultados basura (antialucinaciones)
+        const topResults = scoredChunks.filter(r => r.score >= 0.25).slice(0, 5);
+
+        if (topResults.length === 0) {
+            resultsEl.innerHTML = "<div style='color:#a83232; margin-top:20px;'>No se encontraron resultados relevantes que superen el umbral de similitud. Prueba a reformular la pregunta.</div>";
+            statusEl.textContent = "Búsqueda completada (Sin resultados relevantes).";
+            return;
+        }
         
         // Mostrar resultados en la lista
         topResults.forEach(res => {

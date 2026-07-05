@@ -19,9 +19,9 @@ META_IN   = "metadata.json"
 
 # ─── Partir embeddings.bin ──────────────────────────────────────────────────
 print(f"📂 Leyendo {BIN_IN}…")
-emb = np.fromfile(BIN_IN, dtype=np.float32).reshape(-1, DIM)
+emb = np.fromfile(BIN_IN, dtype=np.int8).reshape(-1, DIM)
 n_chunks = emb.shape[0]
-bytes_per_chunk = DIM * 4
+bytes_per_chunk = DIM
 chunks_per_part = math.floor((PART_MB * 1024 * 1024) / bytes_per_chunk)
 n_parts = math.ceil(n_chunks / chunks_per_part)
 

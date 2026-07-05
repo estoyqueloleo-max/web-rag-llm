@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Convierte database.json (1.2 GB) en dos ficheros más ligeros:
-  - embeddings.bin  → Float32Array binario (138K × 384 × 4 bytes ≈ 213 MB)
+  - embeddings.bin  → Int8Array binario cuantizado (138K × 384 × 1 byte ≈ 53 MB)
   - metadata.json   → texto, entidades, filename (sin embeddings) ≈ 30-50 MB
 """
 
@@ -34,9 +34,11 @@ print(f"📐 Dimensión de embeddings: {dim}", flush=True)
 # --- 1. Guardar embeddings binarios ---
 print(f"💾 Escribiendo {OUTPUT_BIN} ...", flush=True)
 t1 = time.time()
-emb = np.array([d["embedding"] for d in data], dtype=np.float32)
-emb.tofile(OUTPUT_BIN)
-bin_mb = emb.nbytes / 1024 / 1024
+# Cuantizamos de Float32 a Int8 (multiplicando por 127) para reducir el tamaño al 25%
+emb_float = np.array([d["embedding"] for d in data], dtype=np.float32)
+emb_int8 = np.clip(emb_float * 127, -127, 127).astype(np.int8)
+emb_int8.tofile(OUTPUT_BIN)
+bin_mb = emb_int8.nbytes / 1024 / 1024
 print(f"✅ {OUTPUT_BIN} → {bin_mb:.1f} MB  ({time.time()-t1:.1f}s)", flush=True)
 
 # --- 2. Guardar metadatos sin embeddings ---
