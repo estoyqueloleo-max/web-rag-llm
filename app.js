@@ -296,7 +296,8 @@ async function search() {
             let score = cosineSimilarity(queryVec, embeddings, idx);
             
             // Búsqueda híbrida: Boost si las palabras clave están en el texto
-            const queryWords = queryLower.split(' ').filter(w => w.length > 3);
+            const cleanQuery = queryLower.replace(/[.,!?;()]/g, "");
+            const queryWords = cleanQuery.split(' ').filter(w => w.length > 3);
             let matchCount = 0;
             for (const w of queryWords) {
                 if (chunk.text.toLowerCase().includes(w)) matchCount++;
