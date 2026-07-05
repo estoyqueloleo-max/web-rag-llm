@@ -75,3 +75,7 @@ Solución parcial; no escala si se añaden más vídeos.
   Al intentar usar la GPU Intel para inferencia o entrenamiento pesado en PyTorch, la librería (`libintel-ext-pt-cpu.so`) falla con el error de seguridad: 
   `cannot enable executable stack as shared object requires: Invalid argument`.
   **Solución**: Instalar la utilidad `execstack` y limpiar la bandera de seguridad de la librería ejecutando `sudo execstack -c /ruta/a/libintel-ext-pt-cpu.so`, o reinstalar una versión que sea compatible con las políticas del kernel.
+## Sugerencias Pendientes de Implementar (Mejoras RAG)
+- [ ] **Chunking Inteligente:** Cambiar la partición de 500 caracteres por un tokenizador o divisor semántico (ej. `RecursiveCharacterTextSplitter` de LangChain) para no cortar oraciones por la mitad.
+- [ ] **Metadatos de Tiempo (Timestamps):** Indexar las transcripciones usando formato `.vtt` o `.srt` para que los chunks de la base de datos tengan un `minuto` asociado y se pueda navegar al video en ese momento exacto.
+- [ ] **Añadir fuentes al Prompt del LLM:** Modificar el `context` en `app.js` para añadir el título del vídeo (`r.filename`) antes del texto de cada chunk, permitiendo a Qwen referenciar correctamente la fuente.

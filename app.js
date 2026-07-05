@@ -295,9 +295,19 @@ async function search() {
         const scoredChunks = metadata.map((chunk, idx) => {
             let score = cosineSimilarity(queryVec, embeddings, idx);
             
-            // Búsqueda híbrida (Boost por coincidencia léxica exacta)
+            // Búsqueda híbrida: Boost si las palabras clave están en el texto
+            const queryWords = queryLower.split(' ').filter(w => w.length > 3);
+            let matchCount = 0;
+            for (const w of queryWords) {
+                if (chunk.text.toLowerCase().includes(w)) matchCount++;
+            }
+            if (queryWords.length > 0) {
+                score += (matchCount / queryWords.length) * 0.2; // Hasta 0.2 extra si están todas las palabras
+            }
+            
+            // Boost extra si hay coincidencia exacta de la frase entera
             if (chunk.text.toLowerCase().includes(queryLower)) {
-                score += 0.3;
+                score += 0.2;
             }
             if (chunk.entities && chunk.entities.some(e => e.toLowerCase().includes(queryLower))) {
                 score += 0.1;
@@ -311,8 +321,8 @@ async function search() {
         
         // 3. Ordenar por mayor puntuación y aplicar umbral
         scoredChunks.sort((a, b) => b.score - a.score);
-        // Umbral de similitud para evitar resultados basura (antialucinaciones)
-        const topResults = scoredChunks.filter(r => r.score >= 0.25).slice(0, 5);
+        // Umbral bajado a 0.15 porque las similitudes de vectores suelen rondar el 0.2
+        const topResults = scoredChunks.filter(r => r.score >= 0.15).slice(0, 5);
 
         if (topResults.length === 0) {
             resultsEl.innerHTML = "<div style='color:#a83232; margin-top:20px;'>No se encontraron resultados relevantes que superen el umbral de similitud. Prueba a reformular la pregunta.</div>";
